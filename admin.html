@@ -4,131 +4,565 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+
   <title>Admin - PARADIS GAMESTORE</title>
-  
+
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    .actions-commande {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .actions-commande button {
+      border: none;
+      padding: 12px 15px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-accepter {
+      background: #16a34a;
+      color: white;
+    }
+
+    .btn-refuser {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-expedier {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-terminer {
+      background: #7c3aed;
+      color: white;
+    }
+
+    .statut {
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body>
-  
+
   <header>
     <h1>👑 PARADIS GAMESTORE</h1>
     <span>🔐 Administration</span>
   </header>
-  
+
   <main>
-    
-    <h2>📦 Commandes reçues</h2>
-    
-    <button onclick="chargerCommandes()">
-      🔄 Actualiser
-    </button>
-    
-    <div id="commandes">
-      <p>Chargement des commandes...</p>
-    </div>
-    
+
+    <!-- CONNEXION -->
+    <section id="connexion" class="commande">
+
+      <h2>🔐 Connexion administrateur</h2>
+
+      <input
+        type="password"
+        id="password"
+        placeholder="Mot de passe administrateur"
+      >
+
+      <button onclick="connexionAdmin()">
+        🔓 Se connecter
+      </button>
+
+      <p id="message"></p>
+
+    </section>
+
+
+    <!-- ESPACE ADMIN -->
+    <section id="admin" style="display:none;">
+
+      <h2>📦 Commandes reçues</h2>
+
+      <button onclick="chargerCommandes()">
+        🔄 Actualiser
+      </button>
+
+      <button onclick="deconnexion()">
+        🚪 Déconnexion
+      </button>
+
+      <div id="commandes">
+        <p>Chargement...</p>
+      </div>
+
+    </section>
+
   </main>
-  
+
+
   <script>
-    async function chargerCommandes() {
-      
-      const conteneur = document.getElementById("commandes");
-      
+
+    // ==============================
+    // CONNEXION ADMIN
+    // ==============================
+
+    async function connexionAdmin() {
+
+      const password =
+        document.getElementById("password").value;
+
+      const message =
+        document.getElementById("message");
+
+      if (!password) {
+        message.textContent =
+          "⚠️ Entre ton mot de passe.";
+        return;
+      }
+
       try {
-        
-        const reponse = await fetch("/api/orders");
-        
-        const resultat = await reponse.json();
-        
-        if (!resultat.success) {
-          throw new Error("Erreur API");
+
+        const reponse = await fetch(
+          "/api/admin/login",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+              password: password
+            })
+          }
+        );
+
+        const resultat =
+          await reponse.json();
+
+        if (!reponse.ok) {
+
+          message.textContent =
+            "❌ " + resultat.message;
+
+          return;
         }
-        
-        if (resultat.commandes.length === 0) {
-          
+
+        sessionStorage.setItem(
+          "adminToken",
+          resultat.token
+        );
+
+        document.getElementById(
+          "connexion"
+        ).style.display = "none";
+
+        document.getElementById(
+          "admin"
+        ).style.display = "block";
+
+        document.getElementById(
+          "password"
+        ).value = "";
+
+        chargerCommandes();
+
+      } catch (erreur) {
+
+        console.error(erreur);
+
+        message.textContent =
+          "❌ Serveur inaccessible.";
+      }
+    }
+
+
+    // ==============================
+    // CHARGER LES COMMANDES
+    // ==============================
+
+    async function chargerCommandes() {
+
+      const conteneur =
+        document.getElementById("commandes");
+
+      const token =
+        sessionStorage.getItem("adminToken");
+
+      if (!token) {
+
+        afficherConnexion();
+
+        return;
+      }
+
+      conteneur.innerHTML =
+        "<p>⏳ Chargement...</p>";
+
+      try {
+
+        const reponse = await fetch(
+          "/api/orders",
+          {
+            headers: {
+              "Authorization":
+                "Bearer " + token
+            }
+          }
+        );
+
+        const resultat =
+          await reponse.json();
+
+        if (reponse.status === 401) {
+
+          sessionStorage.removeItem(
+            "adminToken"
+          );
+
+          afficherConnexion();
+
+          return;
+        }
+
+        if (!reponse.ok) {
+
+          throw new Error(
+            resultat.message ||
+            "Erreur serveur."
+          );
+        }
+
+        if (
+          !resultat.commandes ||
+          resultat.commandes.length === 0
+        ) {
+
           conteneur.innerHTML = `
             <div class="panier">
               <h3>📭 Aucune commande</h3>
-              <p>Les nouvelles commandes apparaîtront ici.</p>
+              <p>
+                Les nouvelles commandes
+                apparaîtront ici.
+              </p>
             </div>
           `;
-          
+
           return;
         }
-        
+
         conteneur.innerHTML = "";
-        
-        resultat.commandes.reverse().forEach(commande => {
-          
-          const produits = commande.produits
-            .map(produit => `
-              <li>
-                ${produit.nom} -
-                ${produit.prix.toLocaleString("fr-FR")} FCFA
-              </li>
-            `)
-            .join("");
-          
-          conteneur.innerHTML += `
 
-            <div class="panier">
+        resultat.commandes.forEach(
+          commande => {
 
-              <h3>
-                📦 Commande #${commande.id}
-              </h3>
+            const produits =
+              Array.isArray(commande.produits)
+                ? commande.produits
+                : [];
 
-              <p>
-                👤 <strong>${commande.nom}</strong>
-              </p>
+            const listeProduits =
+              produits.map(produit => {
 
-              <p>
-                📱 ${commande.telephone}
-              </p>
+                const prix =
+                  Number(produit.prix) || 0;
 
-              <p>
-                📍 ${commande.adresse}
-              </p>
+                return `
+                  <li>
+                    ${echapperHTML(produit.nom)}
+                    -
+                    ${prix.toLocaleString("fr-FR")}
+                    FCFA
+                  </li>
+                `;
 
-              <h4>🛒 Produits :</h4>
+              }).join("");
 
-              <ul>
-                ${produits}
-              </ul>
+            const total =
+              Number(commande.total) || 0;
 
-              <p>
-                💰 Total :
-                <strong>
-                  ${commande.total.toLocaleString("fr-FR")} FCFA
-                </strong>
-              </p>
+            const date =
+              commande.date
+                ? new Date(
+                    commande.date
+                  ).toLocaleString("fr-FR")
+                : "Date inconnue";
 
-              <p>
-                📌 Statut :
-                <strong>${commande.statut}</strong>
-              </p>
+            conteneur.innerHTML += `
 
-            </div>
-          `;
-          
-        });
-        
+              <div class="panier">
+
+                <h3>
+                  📦 Commande #${commande.id}
+                </h3>
+
+                <p>
+                  👤
+                  <strong>
+                    ${echapperHTML(commande.nom)}
+                  </strong>
+                </p>
+
+                <p>
+                  📱
+                  ${echapperHTML(
+                    commande.telephone
+                  )}
+                </p>
+
+                <p>
+                  📍
+                  ${echapperHTML(
+                    commande.adresse
+                  )}
+                </p>
+
+                <h4>
+                  🛒 Produits :
+                </h4>
+
+                <ul>
+                  ${listeProduits}
+                </ul>
+
+                <p>
+                  💰 Total :
+                  <strong>
+                    ${total.toLocaleString("fr-FR")}
+                    FCFA
+                  </strong>
+                </p>
+
+                <p>
+                  📌 Statut :
+                  <strong class="statut">
+                    ${echapperHTML(
+                      commande.statut
+                    )}
+                  </strong>
+                </p>
+
+                <p>
+                  🕒 ${date}
+                </p>
+
+                <!-- BOUTONS -->
+
+                <div class="actions-commande">
+
+                  <button
+                    class="btn-accepter"
+                    onclick="changerStatut(
+                      ${commande.id},
+                      'Acceptée'
+                    )">
+                    🟢 Accepter
+                  </button>
+
+                  <button
+                    class="btn-refuser"
+                    onclick="changerStatut(
+                      ${commande.id},
+                      'Refusée'
+                    )">
+                    🔴 Refuser
+                  </button>
+
+                  <button
+                    class="btn-expedier"
+                    onclick="changerStatut(
+                      ${commande.id},
+                      'Expédiée'
+                    )">
+                    📦 Expédiée
+                  </button>
+
+                  <button
+                    class="btn-terminer"
+                    onclick="changerStatut(
+                      ${commande.id},
+                      'Terminée'
+                    )">
+                    ✅ Terminée
+                  </button>
+
+                </div>
+
+              </div>
+
+            `;
+          }
+        );
+
       } catch (erreur) {
-        
+
         console.error(erreur);
-        
+
         conteneur.innerHTML = `
           <div class="panier">
-            ❌ Impossible de récupérer les commandes.
+            ❌ Impossible de récupérer
+            les commandes.
           </div>
         `;
       }
     }
-    
-    chargerCommandes();
+
+
+    // ==============================
+    // CHANGER LE STATUT
+    // ==============================
+
+    async function changerStatut(id, statut) {
+
+      const token =
+        sessionStorage.getItem("adminToken");
+
+      if (!token) {
+
+        afficherConnexion();
+
+        return;
+      }
+
+      try {
+
+        const reponse = await fetch(
+          `/api/orders/${id}/status`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization":
+                "Bearer " + token
+            },
+
+            body: JSON.stringify({
+              status: statut
+            })
+          }
+        );
+
+        const resultat =
+          await reponse.json();
+
+        if (reponse.status === 401) {
+
+          sessionStorage.removeItem(
+            "adminToken"
+          );
+
+          afficherConnexion();
+
+          return;
+        }
+
+        if (!reponse.ok) {
+
+          alert(
+            "❌ " +
+            (resultat.message ||
+            "Erreur.")
+          );
+
+          return;
+        }
+
+        await chargerCommandes();
+
+      } catch (erreur) {
+
+        console.error(erreur);
+
+        alert(
+          "❌ Impossible de modifier la commande."
+        );
+      }
+    }
+
+
+    // ==============================
+    // DÉCONNEXION
+    // ==============================
+
+    function deconnexion() {
+
+      sessionStorage.removeItem(
+        "adminToken"
+      );
+
+      afficherConnexion();
+    }
+
+
+    // ==============================
+    // AFFICHER CONNEXION
+    // ==============================
+
+    function afficherConnexion() {
+
+      document.getElementById(
+        "connexion"
+      ).style.display = "block";
+
+      document.getElementById(
+        "admin"
+      ).style.display = "none";
+
+      document.getElementById(
+        "password"
+      ).value = "";
+
+      document.getElementById(
+        "message"
+      ).textContent = "";
+    }
+
+
+    // ==============================
+    // PROTECTION HTML
+    // ==============================
+
+    function echapperHTML(texte) {
+
+      const div =
+        document.createElement("div");
+
+      div.textContent =
+        texte ?? "";
+
+      return div.innerHTML;
+    }
+
+
+    // ==============================
+    // AU CHARGEMENT
+    // ==============================
+
+    const token =
+      sessionStorage.getItem(
+        "adminToken"
+      );
+
+    if (token) {
+
+      document.getElementById(
+        "connexion"
+      ).style.display = "none";
+
+      document.getElementById(
+        "admin"
+      ).style.display = "block";
+
+      chargerCommandes();
+
+    }
+
   </script>
-  
+
 </body>
 
 </html>
