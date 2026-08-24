@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Admin - PARADIS GAMESTORE</title>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  
+  <header>
+    <h1>👑 PARADIS GAMESTORE</h1>
+    <span>🔐 Administration</span>
+  </header>
+  
+  <main>
+    
+    <h2>📦 Commandes reçues</h2>
+    
+    <button onclick="chargerCommandes()">
+      🔄 Actualiser
+    </button>
+    
+    <div id="commandes">
+      <p>Chargement des commandes...</p>
+    </div>
+    
+  </main>
+  
+  <script>
+    async function chargerCommandes() {
+      
+      const conteneur = document.getElementById("commandes");
+      
+      try {
+        
+        const reponse = await fetch("/api/orders");
+        
+        const resultat = await reponse.json();
+        
+        if (!resultat.success) {
+          throw new Error("Erreur API");
+        }
+        
+        if (resultat.commandes.length === 0) {
+          
+          conteneur.innerHTML = `
+            <div class="panier">
+              <h3>📭 Aucune commande</h3>
+              <p>Les nouvelles commandes apparaîtront ici.</p>
+            </div>
+          `;
+          
+          return;
+        }
+        
+        conteneur.innerHTML = "";
+        
+        resultat.commandes.reverse().forEach(commande => {
+          
+          const produits = commande.produits
+            .map(produit => `
+              <li>
+                ${produit.nom} -
+                ${produit.prix.toLocaleString("fr-FR")} FCFA
+              </li>
+            `)
+            .join("");
+          
+          conteneur.innerHTML += `
+
+            <div class="panier">
+
+              <h3>
+                📦 Commande #${commande.id}
+              </h3>
+
+              <p>
+                👤 <strong>${commande.nom}</strong>
+              </p>
+
+              <p>
+                📱 ${commande.telephone}
+              </p>
+
+              <p>
+                📍 ${commande.adresse}
+              </p>
+
+              <h4>🛒 Produits :</h4>
+
+              <ul>
+                ${produits}
+              </ul>
+
+              <p>
+                💰 Total :
+                <strong>
+                  ${commande.total.toLocaleString("fr-FR")} FCFA
+                </strong>
+              </p>
+
+              <p>
+                📌 Statut :
+                <strong>${commande.statut}</strong>
+              </p>
+
+            </div>
+          `;
+          
+        });
+        
+      } catch (erreur) {
+        
+        console.error(erreur);
+        
+        conteneur.innerHTML = `
+          <div class="panier">
+            ❌ Impossible de récupérer les commandes.
+          </div>
+        `;
+      }
+    }
+    
+    chargerCommandes();
+  </script>
+  
+</body>
+
+</html>
