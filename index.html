@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>👑🎮 PARADIS GAMESTORE💎🔥</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header>
+    <h1>👑🎮 PARADIS GAMESTORE 💎🔥</h1>
+
+    <button onclick="afficherPanier()">
+      🛍️ Panier (<span id="nombrePanier">0</span>)
+    </button>
+  </header>
+
+  <main>
+
+    <h2>🔥 Nos produits</h2>
+
+    <div id="produits" class="produits">
+      <!-- Les produits seront ajoutés avec JavaScript -->
+    </div>
+
+    <section id="panier" class="panier" style="display:none;">
+
+      <h2>🛍️ Mon panier</h2>
+
+      <div id="contenuPanier"></div>
+
+      <p>
+        Total :
+        <strong id="total">0 FCFA</strong>
+      </p>
+
+      <button onclick="passerCommande()">
+        📦 Commander
+      </button>
+
+    </section>
+
+    <section id="commande" class="commande" style="display:none;">
+
+      <h2>📦 Informations de livraison</h2>
+
+      <input
+        type="text"
+        id="nom"
+        placeholder="Votre nom"
+      >
+
+      <input
+        type="tel"
+        id="telephone"
+        placeholder="Votre numéro de téléphone"
+      >
+
+      <textarea
+        id="adresse"
+        placeholder="Votre adresse de livraison"
+      ></textarea>
+
+      <button onclick="confirmerCommande()">
+        ✅ Confirmer la commande
+      </button>
+
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
